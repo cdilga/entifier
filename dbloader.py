@@ -43,9 +43,9 @@ class EntityLoader():
     @staticmethod
     def call(tx, aname, relname, bname):
         result = tx.run("MERGE (a: Entity {{ name: '{}' }}) MERGE (b: Entity {{ name: '{}' }}) MERGE (a)-[re:`{}`]->(b)".format(
-            urllib.parse.quote(relname.strip(), safe=' '),
             urllib.parse.quote(aname.strip(), safe=' '),
-            urllib.parse.quote(bname.strip(), safe=' ')))
+            urllib.parse.quote(bname.strip(), safe=' '),
+            urllib.parse.quote(relname.strip(), safe=' ')))
         #tx.run("MATCH (a) MERGE (a {{a.name}})")
         return result
 
