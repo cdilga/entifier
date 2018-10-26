@@ -6,6 +6,7 @@
 '''
 
 import pandas as pd
+import numpy as np
 from neo4j.v1 import GraphDatabase
 
 class EntityLoader():
@@ -18,14 +19,8 @@ class EntityLoader():
     '''
 
     def __init__(self, filename, reader):
-        self._load(filename)
         self._dbconnect('bolt://localhost:7687', 'neo4j', 'neo4')
         self._df = reader(filename)
-
-    def _load(self, filename):
-        #actually just use pandas here
-        #do some parsing here 
-        
 
     def _dbconnect(self, uri, user, password):
         self._driver = GraphDatabase.driver(uri, auth=(user, password))
@@ -40,7 +35,7 @@ class EntityLoader():
             
     def push(self):
         #print(self._df)
-        for row in self._df.iloc[:,[15,16,17]].iterrows():
+        for row in self._df.iloc[:,[0,1,2]].iterrows():
             self.addNode(row[1][0], row[1][1], row[1][2])
 
 
@@ -53,7 +48,21 @@ class EntityLoader():
     def close(self):
         self._driver.close()
 
+def yagoReader(filename):
+    arr = []
+    with open(filename, encoding="utf8") as f:
+        for line in f:
+            arr.append([el.replace('<', '').replace('>', '') for el in line.strip().split('\t')])
+    return pd.DataFrame(arr)
 
-e = EntityLoader('data/reverb-output.csv', lambda x : pd.read_csv(x, sep='\t', lineterminator='\n'))
+def csvRead(filename):
+    df = pd.read_csv(filename, sep='\t',
+                     lineterminator='\n').iloc[:, [15, 16, 17]]
+
+    return df
+
+
+#e = EntityLoader('data/yagoFacts.tsv', yagoReader)
+e = EntityLoader('data/reverb-output.csv', csvRead)
 e.push()
 
