@@ -17,14 +17,15 @@ class EntityLoader():
     Single use.
     '''
 
-    def __init__(self, filename):
+    def __init__(self, filename, reader):
         self._load(filename)
         self._dbconnect('bolt://localhost:7687', 'neo4j', 'neo4')
+        self._df = reader(filename)
 
     def _load(self, filename):
         #actually just use pandas here
         #do some parsing here 
-        self._df = pd.read_csv(filename, sep='\t', lineterminator='\n')
+        
 
     def _dbconnect(self, uri, user, password):
         self._driver = GraphDatabase.driver(uri, auth=(user, password))
@@ -45,14 +46,14 @@ class EntityLoader():
 
     @staticmethod
     def call(tx, aname, relname, bname):
-        result = tx.run("CREATE(a: Entity)-[re:$name]->(b: Entity)" +
-                        "SET a.name=$aname, b.name=$bname", aname=aname, bname=bname, name=relname)
+        result = tx.run("CREATE(a: Entity)-[re:Entity]->(b: Entity)" +
+                        "SET a.name=$aname, b.name=$bname, re.name=$name", aname=aname, bname=bname, name=relname)
         return result
 
     def close(self):
         self._driver.close()
 
 
-e = EntityLoader('data/reverb-output.csv')
-#e.addNode('tim', 'has sister', 'beth')
+e = EntityLoader('data/reverb-output.csv', lambda x : pd.read_csv(x, sep='\t', lineterminator='\n'))
 e.push()
+
