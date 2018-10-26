@@ -1,9 +1,11 @@
-# entifier
+# Entifier
 CS6120
 
-Keep in mind that the output of reverb is:
+> Extracting quality named entity relations in textual documents for visualisation and querying in a performant graph database
 
-Output Columns:
+
+
+Output Columns of ReVerb from OpenIE:
     1. filename
     2. sentence number
     3. arg1
@@ -22,4 +24,9 @@ Output Columns:
     16. arg1 normalized
     17. rel normalized
     18. arg2 normalized
-    
+
+
+## Installation Instructions
+
+This requires pandas, neo4j
+Install anaconda if in doubt.
