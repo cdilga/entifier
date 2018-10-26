@@ -7,6 +7,7 @@
 
 import pandas as pd
 import numpy as np
+import urllib
 from neo4j.v1 import GraphDatabase
 
 class EntityLoader():
@@ -41,8 +42,11 @@ class EntityLoader():
 
     @staticmethod
     def call(tx, aname, relname, bname):
-        result = tx.run("CREATE(a: Entity)-[re:Entity]->(b: Entity)" +
-                        "SET a.name=$aname, b.name=$bname, re.name=$name", aname=aname, bname=bname, name=relname)
+        result = tx.run("MERGE (a: Entity {{ name: '{}' }}) MERGE (b: Entity {{ name: '{}' }}) MERGE (a)-[re:`{}`]->(b)".format(
+            urllib.parse.quote(relname.strip(), safe=' '),
+            urllib.parse.quote(aname.strip(), safe=' '),
+            urllib.parse.quote(bname.strip(), safe=' ')))
+        #tx.run("MATCH (a) MERGE (a {{a.name}})")
         return result
 
     def close(self):
@@ -56,13 +60,12 @@ def yagoReader(filename):
     return pd.DataFrame(arr)
 
 def csvRead(filename):
-    df = pd.read_csv(filename, sep='\t',
-                     lineterminator='\n').iloc[:, [15, 16, 17]]
+    df = pd.read_csv(filename, sep='\t', lineterminator='\n').iloc[:, [15, 16, 17]]
 
     return df
 
 
-#e = EntityLoader('data/yagoFacts.tsv', yagoReader)
-e = EntityLoader('data/reverb-output.csv', csvRead)
+e = EntityLoader('data/yagoFacts.tsv', yagoReader)
+#e = EntityLoader('data/reverb-output.csv', csvRead)
 e.push()
 
