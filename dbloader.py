@@ -1,5 +1,7 @@
-# The cols we want are 16, 17, 18 as they contain the normalised:
+
 '''
+The cols we want are 16, 17, 18 as they contain the normalised:
+
 16: normalised arg1
 17: normalised rel
 18: normalised arg2
@@ -42,11 +44,12 @@ class EntityLoader():
 
     @staticmethod
     def call(tx, aname, relname, bname):
-        result = tx.run("MERGE (a: Entity {{ name: '{}' }}) MERGE (b: Entity {{ name: '{}' }}) MERGE (a)-[re:`{}`]->(b)".format(
-            urllib.parse.quote(aname.strip(), safe=' '),
-            urllib.parse.quote(bname.strip(), safe=' '),
-            urllib.parse.quote(relname.strip(), safe=' ')))
+        result = tx.run("MERGE (a: ReverbEntity {{ name: '{}' }}) MERGE (b: ReverbEntity {{ name: '{}' }}) MERGE (a)-[re:`{}`]->(b)".format(
+            urllib.parse.quote(str(aname).replace(' ', '_').strip(), safe=' '),
+            urllib.parse.quote(str(bname).replace(' ', '_').strip(), safe=' '),
+            urllib.parse.quote(str(relname).replace(' ', '_').strip(), safe=' ')))
         #tx.run("MATCH (a) MERGE (a {{a.name}})")
+        print('.', end='')
         return result
 
     def close(self):
@@ -60,12 +63,12 @@ def yagoReader(filename):
     return pd.DataFrame(arr)
 
 def csvRead(filename):
-    df = pd.read_csv(filename, sep='\t', lineterminator='\n').iloc[:, [15, 16, 17]]
-
+    df = pd.read_csv(filename, sep='\t', lineterminator='\n',
+                     encoding='utf8', error_bad_lines=False).iloc[:, [15, 16, 17]]
+    print('Successfully read in file')
     return df
 
 
-e = EntityLoader('data/yagoFacts.tsv', yagoReader)
-#e = EntityLoader('data/reverb-output.csv', csvRead)
+#e = EntityLoader('data/yagoFacts.tsv', yagoReader)
+e = EntityLoader('data/wikipedia-partial-output.txt', csvRead)
 e.push()
-
