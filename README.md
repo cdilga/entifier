@@ -38,3 +38,8 @@ java -Xmx512m -jar reverb.jar yourfile.txt > outputfile.tsv
 ```
 
 Note that this can cause parsing errors when done in windows
+
+
+# How to extract wikipedia
+https://github.com/attardi/wikiextractor
+python3 WikiExtractor.py -b 2G -o new Wikipedia-20181026150828.xml
