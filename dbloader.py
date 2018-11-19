@@ -221,6 +221,6 @@ def classifyEntities(wiki, yago):
     #if it's further than some distance then we just leave it out of class
 
 
-deambiguated = classifyEntities(wiki._df.iloc[:100, :], yago._df)
-
+deambiguated = classifyEntities(wiki._df.iloc[:100, :], yago._df.iloc[:101, :])
+deambiguated.to_csv(open('output.csv', 'w'))
 print(findMatches(deambiguated, yago._df))
