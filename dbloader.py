@@ -108,7 +108,7 @@ yago = EntityLoader('data/yagoFacts.tsv', yagoReader)
 
 wiki = EntityLoader('data/wikipedia-full-reverb.txt', csvRead)
 #df = csvRead('data/wikipedia-partial-output.txt')
-print(wiki._df.head())
+#print(wiki._df.head())
 #wiki.cache()
 #wiki.push()
 
@@ -135,18 +135,19 @@ def loadGensim():
     try:
         gensimmodel = pickle.load(open('gensim.cache', 'rb'))
         print('Loaded gensim from cache')
-    except: 
+    except:
         from gensim.models import KeyedVectors
         print('Fallback to loading gensim from source')
-        gensimmodel = KeyedVectors.load_word2vec_format(
-            './google-news/GoogleNews-vectors-negative300.bin.gz', binary=True)
-        pickle.dump(gensimmodel, open('gensim.cache', 'wb'))
+        #NOTE You can swap these comments with the middle gensim line
+        #gensimmodel = KeyedVectors.load_word2vec_format('./google-news/GoogleNews-vectors-negative300.bin', binary=True, limit=50000)
+        gensimmodel = KeyedVectors.load_word2vec_format('./google-news/GoogleNews-vectors-negative300.bin', binary=True)
+        #pickle.dump(gensimmodel, open('gensim.cache', 'wb'))
         print('Loaded Gensim')
     
     return gensimmodel
 class KillClassifier():
     def __init__(self, threshold):
-        self._threshold =threshold
+        self._threshold = threshold
 
     def fit(self, x, y):
         #for the first element 
@@ -155,16 +156,25 @@ class KillClassifier():
         self.train_x = x
         self.train_y = y
 
-        
+    def matrix_cosine(self, x, y):
+        return np.einsum('ij,ij->i', x, y) / (
+            np.linalg.norm(x, axis=1) * np.linalg.norm(y, axis=1)
+        )
     def predict(self, x):
+        if(len(x) == 0):
+            raise AttributeError('passed length of 0 which is dumb???')
+
         x = np.array(x)
         for i, k in enumerate(x):
-            ret = np.empty_like(x)
+            ret = np.chararray((x.shape[0], 1), unicode = True)
             #temp = np.empty_like(x)
-            temp = sklearn.metrics.pairwise.cosine_similarity(np.broadcast_to(x[i], self.train_x.shape), self.train_x)
-            index = np.argmin(temp)
-            if temp[index] > self._threshold:
-                ret[i] = self.train_y[index]
+            temp = self.matrix_cosine(np.broadcast_to(x[i], self.train_x.shape), self.train_x)
+            if not np.isnan(temp[0]):
+                index = np.nanargmax(temp)
+                if temp[index] > self._threshold:
+                    ret[i] = self.train_y[index]
+                else:
+                    ret[i] = None
             else:
                 ret[i] = None
         return ret
@@ -174,25 +184,34 @@ def lookup(gensim, k):
         return gensim[k]
     except:
         return np.zeros_like(gensim['the'])
+
 def convertToEmbeddings(words, gensim):
     ret = []
     for i, val in enumerate(words):
         ret.append(
             np.mean(np.array([lookup(gensim, k) for k in str(val).split('_')]), axis=0))
-    return np.array(ret)
+    ret = np.array(ret)
+    if np.all(np.isnan(np.array(ret))):
+        raise ValueError
+
+    return ret
+
 def classifyEntities(wiki, yago):
     '''Maps the wiki classifications to yago ones, or declares them 'out of class' '''
     gensim = loadGensim()
     #will use the yago vecs inside a knn that is essentially pretrained....
     #essentially an argmin of the distances to known classes
     #make the word vecs of the unique yago classes the training x and the actual words the labels
-    clr = KillClassifier(0.2)
+    clr = KillClassifier(0.8)
     
     #fakeGensim = {'the': np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])}
 
     training_y = yago.iloc[:, 0].append(yago.iloc[:, 2])
     
+    print(training_y.shape)
     training_x = convertToEmbeddings(training_y, gensim)
+    if training_x.shape[0] != training_y.shape[0]:
+        raise ValueError('Somehow the x training shape is wrong')
     print('Finished converting embeddings')
     #then find the closest by some distance metric. Then go for it.
     #print(training_x)
@@ -205,14 +224,24 @@ def classifyEntities(wiki, yago):
 
     #run second column through predict
     finalDf = pd.DataFrame()
+    print('e1 shape: {}'.format(wiki['e1'].values.shape))
     e1Embeddings = convertToEmbeddings(wiki['e1'], gensim)
     print('e1 Embeddings calculated')
-    finalDf['e1'] = clr.predict(e1Embeddings)
+    if e1Embeddings.size == 0:
+        print("ERROR")
+    finalDf['e1w'] = wiki['e1']
+    finalDf['e1p'] = clr.predict(e1Embeddings)
+    #finalDf['e1y'] = yago['e1']
     print('predicted e1')
     finalDf['rel'] = wiki['rel']
     e2Embeddings = convertToEmbeddings(wiki['e2'], gensim)
+
     print('e2 Embeddings calculated')
-    finalDf['e2'] = clr.predict(e2Embeddings)
+    if e2Embeddings.size == 0:
+        print("ERROR")
+    finalDf['e2w'] = wiki['e2']
+    finalDf['e2p'] = clr.predict(e2Embeddings)
+    #finalDf['e2y'] = yago['e2']
     print('predicted e2')
 
     
@@ -220,7 +249,8 @@ def classifyEntities(wiki, yago):
 
     #if it's further than some distance then we just leave it out of class
 
+#NOTE you can replace the first : with a :1000 to get a smallersubset
+deambiguated = classifyEntities(wiki._df.iloc[:, :], yago._df.iloc[:, :])
+saveDf = deambiguated.loc[np.logical_and(deambiguated['e1p'] != '', deambiguated['e2p'] != '')]
+saveDf.to_csv(open('fullDataDump.csv', 'w'))
 
-deambiguated = classifyEntities(wiki._df.iloc[:100, :], yago._df.iloc[:101, :])
-deambiguated.to_csv(open('output.csv', 'w'))
-print(findMatches(deambiguated, yago._df))
