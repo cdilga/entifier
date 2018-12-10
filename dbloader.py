@@ -20,7 +20,8 @@ import nltk
 # nltk.download('stopwords')
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-stop_words = set(stopwords.words('english'))
+
+import pickle_fix
 
 
 class EntityLoader():
@@ -111,16 +112,6 @@ def csvRead(filename):
     return df
 
 
-yago = EntityLoader('data/yagoFacts.tsv', yagoReader)
-yago.cache()
-
-wiki = EntityLoader('data/wikipedia-full-reverb.txt', csvRead)
-# df = csvRead('data/wikipedia-partial-output.txt')
-# print(wiki._df.head())
-wiki.cache()
-# wiki.push()
-
-
 def compare(entity1, entity2):
     '''Take two dataframes with 3 columns and compare entities'''
     temp1 = pd.concat([entity1.iloc[:, 0], entity1.iloc[:, 2]])
@@ -144,20 +135,18 @@ def findMatches(entity1, entity2):
 
 
 def loadGensim():
-    try:
-        gensimmodel = pickle.load(open('gensim.cache', 'rb'))
-        print('Loaded gensim from cache')
-    except:
+    # swapped to use a different pickling method to prevent
+    # random OSX errors
+
+    gensimmodel = pickle_fix.try_to_load_as_pickled_object_or_None(
+        'gensim.cache')
+    if gensimmodel is None:
         from gensim.models import KeyedVectors
-        print('Fallback to loading gensim from source')
-        # NOTE You can swap these comments with the middle gensim line
-        # gensimmodel = KeyedVectors.load_word2vec_format('./google-news/GoogleNews-vectors-negative300.bin',
-        # binary=True,
-        # limit=50000)
         gensimmodel = KeyedVectors.load_word2vec_format(
             './google-news/GoogleNews-vectors-negative300.bin', binary=True)
-        pickle.dump(gensimmodel, open('gensim.cache', 'wb'))
-        print('Loaded Gensim')
+        pickle_fix.save_as_pickled_object(gensimmodel, 'gensim.cache')
+
+    print('Loaded Gensim')
 
     return gensimmodel
 
@@ -275,8 +264,21 @@ def classifyEntities(wiki, yago):
     # if it's further than some distance then we just leave it out of class
 
 
-# NOTE you can replace the first : with a :1000 to get a smallersubset
-deambiguated = classifyEntities(wiki._df.iloc[1000, :], yago._df.iloc[:, :])
-saveDf = deambiguated.loc[np.logical_and(
-    deambiguated['e1p'] != '', deambiguated['e2p'] != '')]
-saveDf.to_csv(open('fullDataDump.csv', 'w'))
+if __file__ == '__main__':
+
+    stop_words = set(stopwords.words('english'))
+
+    yago = EntityLoader('data/yagoFacts.tsv', yagoReader)
+    yago.cache()
+
+    wiki = EntityLoader('data/wikipedia-full-reverb.txt', csvRead)
+    # df = csvRead('data/wikipedia-partial-output.txt')
+    # print(wiki._df.head())
+    wiki.cache()
+    # wiki.push()
+
+    # NOTE you can replace the first : with a :1000 to get a smallersubset
+    deambiguated = classifyEntities(wiki._df.iloc[:1000, :], yago._df.iloc[:, :])
+    saveDf = deambiguated.loc[np.logical_and(
+        deambiguated['e1p'] != '', deambiguated['e2p'] != '')]
+    saveDf.to_csv(open('fullDataDump.csv', 'w'))
