@@ -3,8 +3,6 @@ CS6120
 
 > Extracting quality named entity relations in textual documents for visualisation and querying in a performant graph database
 
-
-
 Output Columns of ReVerb from OpenIE:
     1. filename
     2. sentence number
@@ -30,3 +28,18 @@ Output Columns of ReVerb from OpenIE:
 
 This requires pandas, neo4j
 Install anaconda if in doubt.
+
+## How to run reverb
+
+```
+java -Xmx512m -jar reverb.jar yourfile.txt
+
+java -Xmx512m -jar reverb.jar yourfile.txt > outputfile.tsv
+```
+
+Note that this can cause parsing errors when done in windows
+
+
+# How to extract wikipedia
+https://github.com/attardi/wikiextractor
+python3 WikiExtractor.py -b 2G -o new Wikipedia-20181026150828.xml
